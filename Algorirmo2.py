@@ -16,7 +16,8 @@ scope = 'user-library-read playlist-modify-private playlist-modify-public user-t
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=client_id,
                                                client_secret=client_secret,
                                                redirect_uri=redirect_uri,
-                                               scope=scope))
+                                               scope=scope,
+                                               show_dialog=True))
 
 
 # Dicionário para armazenar as músicas salvas
@@ -25,37 +26,23 @@ musicas = {
     'id': [],
     'danceability': [],
     'energy': [],
-    'key': [],
     'speechiness': [],
-    'instrumentalness': [],
+    'loudness': [],
     'valence': [],
     'tempo': []
 }
 
-# Função para obter as músicas salvas do usuário com paginação
-# def get_saved_tracks():
-#     offset = 0
-#     while offset < 100:  # Limite ajustável, atualmente 200 músicas
-#         results = sp.current_user_saved_tracks(limit=50, offset=offset)
-#         if len(results['items']) == 0:
-#             break
-#         for item in results['items']:
-#             track = item['track']
-#             musicas['nome'].append(track['name'])
-#             musicas['id'].append(track['id'])
-#         offset += 50  # Avança para a próxima página
-#     return musicas
-
+# Função para obter as 100 músicas mais ouvidas do usuário
 def get_top_tracks():
     offset = 0
-    while offset < 100:  # Limite ajustável, atualmente até 100 faixas
+    while offset < 100: 
         results = sp.current_user_top_tracks(limit=50, offset=offset)
         if len(results['items']) == 0:
             break
         for track in results['items']:
             musicas['nome'].append(track['name'])
             musicas['id'].append(track['id'])
-        offset += 50  # Avança para a próxima página
+        offset += 50  
     return musicas
 
 # Função para obter os parâmetros das músicas, com verificação de nulos
@@ -65,9 +52,8 @@ def get_parametros(musicas):
         if features:  # Verifica se os audio features estão disponíveis
             musicas['danceability'].append(features['danceability'])
             musicas['energy'].append(features['energy'])
-            musicas['key'].append(features['key'])
             musicas['speechiness'].append(features['speechiness'])
-            musicas['instrumentalness'].append(features['instrumentalness'])
+            musicas['loudness'].append(features['loudness'])
             musicas['valence'].append(features['valence'])
             musicas['tempo'].append(features['tempo'])
         else:
@@ -76,7 +62,7 @@ def get_parametros(musicas):
             musicas['energy'].append(None)
             musicas['key'].append(None)
             musicas['speechiness'].append(None)
-            musicas['instrumentalness'].append(None)
+            musicas['loudness'].append(None)
             musicas['valence'].append(None)
             musicas['tempo'].append(None)
     return musicas
@@ -91,20 +77,14 @@ print(df_musicas)
 
 # Escalando as colunas numéricas, ignorando valores nulos
 scaler = StandardScaler()
-musicas_scaled = scaler.fit_transform(df_musicas[['danceability', 'energy', 'key', 'speechiness', 'instrumentalness', 'valence', 'tempo']].fillna(0))
+musicas_scaled = scaler.fit_transform(df_musicas[['danceability', 'energy', 'speechiness', 'loudness', 'valence', 'tempo']].fillna(0))
 
 # Definindo o número de clusters
-k = 5  # Número de clusters pode ser ajustado
+k = 5 
 kmeans = KMeans(n_clusters=k, random_state=42)
 
 # Atribuindo os clusters ao DataFrame
 df_musicas['cluster'] = kmeans.fit_predict(musicas_scaled)
-
-# Exibindo os clusters
-for i in range(k):
-    print(f"Cluster {i}:")
-    print(df_musicas[df_musicas['cluster'] == i][['nome', 'tempo', 'danceability', 'energy', 'valence']])
-    print("\n")
 
 # Função para criar playlists para cada cluster
 def create_playlists_for_clusters(sp, df_musicas, user_id):
